@@ -118,6 +118,16 @@
     </script>
     <script type="module">
         async function onLoad() {
+            const NetworkKey = "Network"
+            window.network = localStorage.getItem(NetworkKey) || Network.MAINNET;
+            document.getElementById("network").innerText = network !== Network.MAINNET ? "Chipnet" : "Mainnet"
+            document.getElementById("network-item").innerText = network === Network.MAINNET ? "Chipnet" : "Mainnet"
+
+            window.toggleNetwork = () => {
+                localStorage.setItem(NetworkKey, network === Network.MAINNET ? Network.TESTNET : Network.MAINNET)
+                window.location.reload()
+            }
+
             const contract = new Contract(
                 `pragma cashscript ^0.8.0;
                     contract BlockHeightOracle(int rewardPerBlock, int fee) {
@@ -139,18 +149,18 @@
                         }
                     }`,
                 [REWARD_PER_BLOCK, DEFAULT_USER_FEE],
-                network === "Mainnet" ? Network.MAINNET : Network.TESTNET
+                network
             )
 
             // update html
             document.getElementById("covenantAddress").innerText = contract.getDepositAddress()
-            const tokenCategory = network === "Mainnet" ? "f10fe0965f4b7d1b9666783bbe25ec031a876b11997e812d27d534d127db1f32" : "9e19e9aa75926e9329e6f30a6634ee7ad3cc9cc166df6d34284c1e2b5b47eaf3"
+            const tokenCategory = network === Network.MAINNET ? "f10fe0965f4b7d1b9666783bbe25ec031a876b11997e812d27d534d127db1f32" : "9e19e9aa75926e9329e6f30a6634ee7ad3cc9cc166df6d34284c1e2b5b47eaf3"
             document.getElementById("tokenCategory").innerText = tokenCategory
 
             const getHeights = () => {
                 return Promise.all([
                     contract.getUtxos().then(utxos => utxos.find(x => x.token && x.token.tokenId === tokenCategory)).then(utxo => commitment2Height(utxo.token.commitment)),
-                    getNetworkProvider(network === "Mainnet" ? Network.MAINNET : Network.TESTNET).getBlockHeight(),
+                    getNetworkProvider(network).getBlockHeight(),
                 ])
             }
 
@@ -170,7 +180,7 @@
 
 
             const updateHistory = async () => {
-                const provider = getNetworkProvider(network === "Mainnet" ? Network.MAINNET : Network.TESTNET)
+                const provider = getNetworkProvider(network)
                 const history = await provider.getHistory(contract.getDepositAddress())
                 let txs = await Promise.all(history.reverse().splice(0, 10).map(x => provider.getRawTransactionObject(x.tx_hash)))
                 txs = txs.filter(x => x.vout[0].tokenData.category === tokenCategory)
@@ -391,17 +401,5 @@
         </div>
     </div>
 </body>
-
-<script>
-    const NetworkKey = "Network"
-    const network = localStorage.getItem(NetworkKey) || 'Mainnet'
-    document.getElementById("network").innerText = network
-    document.getElementById("network-item").innerText = network === 'Mainnet' ? "Chipnet" : "Mainnet"
-
-    function toggleNetwork() {
-        localStorage.setItem(NetworkKey, network === 'Mainnet' ? "Chipnet" : "Mainnet")
-        window.location.reload()
-    }
-</script>
 
 </html>
